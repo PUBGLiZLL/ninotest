@@ -1,0 +1,123 @@
+//PUBGM(0.13.5)32位SDK
+//作者:清华
+//Telegram:@qinghuanb666
+//生成时间:Fri Apr 18 20:44:52 2025
+
+#include "../SDK.hpp"
+
+namespace SDK
+{
+//---------------------------------------------------------------------------
+//Functions
+//---------------------------------------------------------------------------
+
+// Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.UpdateSelected
+// (Public, BlueprintCallable, BlueprintEvent)
+
+void ULogin_SelectedServerItem_UIBP_C::UpdateSelected()
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.UpdateSelected");
+
+	ULogin_SelectedServerItem_UIBP_C_UpdateSelected_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+
+	UObject *currentObj = (UObject *) this;
+	currentObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.SetServerData
+// (Public, HasDefaults, BlueprintCallable, BlueprintEvent)
+// Parameters:
+// struct FBP_STRUCT_ServerInfo   serverinfo                     (BlueprintVisible, BlueprintReadOnly, Parm)
+// int                            Index                          (BlueprintVisible, BlueprintReadOnly, Parm, ZeroConstructor, IsPlainOldData)
+
+void ULogin_SelectedServerItem_UIBP_C::SetServerData(const struct FBP_STRUCT_ServerInfo& serverinfo, int Index)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.SetServerData");
+
+	ULogin_SelectedServerItem_UIBP_C_SetServerData_Params params;
+	params.serverinfo = serverinfo;
+	params.Index = Index;
+
+	auto flags = pFunc->FunctionFlags;
+
+	UObject *currentObj = (UObject *) this;
+	currentObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.Construct
+// (BlueprintCosmetic, Event, Public, BlueprintEvent)
+
+void ULogin_SelectedServerItem_UIBP_C::Construct()
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.Construct");
+
+	ULogin_SelectedServerItem_UIBP_C_Construct_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+
+	UObject *currentObj = (UObject *) this;
+	currentObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.BndEvt__Button_0_K2Node_ComponentBoundEvent_0_OnButtonClickedEvent__DelegateSignature
+// (BlueprintEvent)
+
+void ULogin_SelectedServerItem_UIBP_C::BndEvt__Button_0_K2Node_ComponentBoundEvent_0_OnButtonClickedEvent__DelegateSignature()
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.BndEvt__Button_0_K2Node_ComponentBoundEvent_0_OnButtonClickedEvent__DelegateSignature");
+
+	ULogin_SelectedServerItem_UIBP_C_BndEvt__Button_0_K2Node_ComponentBoundEvent_0_OnButtonClickedEvent__DelegateSignature_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+
+	UObject *currentObj = (UObject *) this;
+	currentObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.ExecuteUbergraph_Login_SelectedServerItem_UIBP
+// ()
+// Parameters:
+// int                            EntryPoint                     (BlueprintVisible, BlueprintReadOnly, Parm, ZeroConstructor, IsPlainOldData)
+
+void ULogin_SelectedServerItem_UIBP_C::ExecuteUbergraph_Login_SelectedServerItem_UIBP(int EntryPoint)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function Login_SelectedServerItem_UIBP.Login_SelectedServerItem_UIBP_C.ExecuteUbergraph_Login_SelectedServerItem_UIBP");
+
+	ULogin_SelectedServerItem_UIBP_C_ExecuteUbergraph_Login_SelectedServerItem_UIBP_Params params;
+	params.EntryPoint = EntryPoint;
+
+	auto flags = pFunc->FunctionFlags;
+
+	UObject *currentObj = (UObject *) this;
+	currentObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+}
+

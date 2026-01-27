@@ -1,0 +1,25 @@
+#pragma once
+
+//PUBGM(0.13.5)32位SDK
+//作者:清华
+//Telegram:@qinghuanb666
+//生成时间:Fri Apr 18 20:44:48 2025
+
+namespace SDK
+{
+//---------------------------------------------------------------------------
+//Script Structs
+//---------------------------------------------------------------------------
+
+// UserDefinedStruct BP_STRUCT_RoleInfoTag.BP_STRUCT_RoleInfoTag
+// 0x0014
+struct FBP_STRUCT_RoleInfoTag
+{
+	int                                                id_0_65292DE942DE4306B748C9989163D095;                    // 0x0000(0x0004) (Edit, BlueprintVisible, ZeroConstructor, IsPlainOldData)
+	bool                                               selected_3_BCB06B1F486530C6AE50E4B00F4D2C1F;              // 0x0004(0x0001) (Edit, BlueprintVisible, ZeroConstructor, IsPlainOldData)
+	unsigned char                                      UnknownData00[0x3];                                       // 0x0005(0x0003) MISSED OFFSET
+	struct FString                                     text_2_AD623136419FB99BEE4E86AC34121DA1;                  // 0x0008(0x000C) (Edit, BlueprintVisible, ZeroConstructor)
+};
+
+}
+
