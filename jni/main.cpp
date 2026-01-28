@@ -20,9 +20,12 @@ TNameEntryArray *GetGNames()
     return (TNameEntryArray *)getPointer(UE4 + 0x4431ae4);
 }
 UWorld *GetWorld()
+{
+    return (UWorld *)getPointer(UE4 + 0x464c480);
 }
 #include <vector>
-std::vector<AActor *> getActors() {
+std::vector<AActor *> getActors()
+{
     auto World = GetWorld();
 
     auto Actors = *(TArray<AActor *> *)(*(uintptr_t *)((uintptr_t)World + 0x20) + 0x70);
