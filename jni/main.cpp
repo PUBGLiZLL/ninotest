@@ -228,8 +228,6 @@ EGLBoolean _eglSwapBuffers(EGLDisplay dpy, EGLSurface surface)
     ImGui_ImplAndroid_NewFrame(glWidth, glHeight);
     ImGui::NewFrame();
 
-    Server_Tick_Loop();
-
     初始化菜单();
     if (开关)
     {
