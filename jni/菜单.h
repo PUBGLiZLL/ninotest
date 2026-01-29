@@ -3,7 +3,6 @@
 #include <map>
 #include <mutex>
 #include <string>
-// 加载地图初始化
 
 #ifndef SERVER_FIX_MACROS
 #define SERVER_FIX_MACROS
@@ -13,156 +12,110 @@
 #include "SDK/PUBGM_Basic.hpp"
 
 // =================================================================================
-// 1. 宏与工具
+// 1. 核心定义
 // =================================================================================
 
-// 强制转换宏
-#define AS_MOVE(x) (SDK::EMovementMode)(x)
 #define AS_COLLISION(x) (SDK::ECollisionEnabled)(x)
 #define AS_RESPONSE(x) (SDK::ECollisionResponse)(x)
 #define AS_CHANNEL(x) (SDK::ECollisionChannel)(x)
 
-// 常用通道ID
-const int CH_WorldStatic = 0; 
-const int CH_Pawn = 2;
-const int CH_Visibility = 3; 
-const int CH_Camera = 4;
-
-// 指针检查
 template<typename T>
 bool IsValid(T* ptr) {
-    return ptr != nullptr && (uintptr_t)ptr > 0x10000;
+    uintptr_t addr = (uintptr_t)ptr;
+    return addr > 0x10000 && addr < 0xFFFFFFFFFF;
 }
 
-// 防崩溃空结构体
-struct FDummyHitResult {
-    unsigned char Data[0x100]; 
-};
-
 using namespace SDK;
+extern uintptr_t UE4;
 
 // =================================================================================
-// 2. 修复函数
+// 2. 修复逻辑
 // =================================================================================
 
-/**
- * [A] 强力开门
- * 避开了 K2_GetComponentRotation，只旋转 Actor
- */
+/** [A] 门修复 */
 void Force_Open_Door(AActor* Actor) {
     if (!IsValid(Actor) || !Actor->IsA(APUBGDoor::StaticClass())) return;
-    
     APUBGDoor* Door = (APUBGDoor*)Actor;
-    
-    // 0=Close
     if (Door->doorState == 0) {
         Door->doorState = 1; 
-
-        // 只旋转 Actor，不碰 Component，防止报错
         FRotator Rot = Door->K2_GetActorRotation();
         Rot.Yaw += 90.0f;
         Door->K2_SetActorRotation(Rot, false);
-
-        // 强制网络同步
         Door->ForceNetUpdate();
     }
 }
 
-/**
- * [B] 完美修复伤害与移动 (重点!)
- * 1. 设为 QueryOnly (只检测子弹，不卡移动)
- * 2. 忽略 Camera (修复视角卡脖子)
- * 3. 忽略 Pawn (修复无法移动)
+/** * [B] V26.0 骨骼受击精准修复
+ * 重点：既然拳头行枪不行，说明 Mesh 没接住子弹射线
  */
-void Fix_Damage_And_Movement(ASTExtraBaseCharacter* Character) {
+void Fix_Weapon_Damage_V26(ASTExtraPlayerCharacter* Character, bool bIsSelf) {
     if (!IsValid(Character)) return;
 
-    // 获取所有骨骼模型组件
-    TArray<UActorComponent*> Meshes = Character->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
+    // 1. 权限与阵营隔离 (基于 SDK PlayerState)
+    Character->bCanBeDamaged = true;
+    if (IsValid(Character->PlayerState)) {
+        ASTExtraPlayerState* PS = (ASTExtraPlayerState*)Character->PlayerState;
+        if (!bIsSelf) PS->TeamID = 99; // 强制敌对，防止队友保护
+    }
 
+    // 2. 胶囊体 (Capsule)：拳头判定的温床
+    // 我们必须保持它 Block Visibility，否则拳头就废了
+    if (Character->CapsuleComponent) {
+        Character->CapsuleComponent->SetCollisionEnabled(AS_COLLISION(3)); // QueryAndPhysics
+        Character->CapsuleComponent->SetCollisionResponseToChannel(AS_CHANNEL(3), AS_RESPONSE(2)); // Block Visibility (拳头)
+        
+        // [关键修正] 对自定义通道 (5-20) 设为 IGNORE
+        // 这样枪械子弹会直接穿透胶囊体，去撞击里面的 Mesh
+        for (int c = 5; c <= 20; c++) {
+            Character->CapsuleComponent->SetCollisionResponseToChannel(AS_CHANNEL(c), AS_RESPONSE(0)); 
+        }
+    }
+
+    // 3. 骨骼模型 (Mesh)：枪械判定的核心
+    TArray<UActorComponent*> Meshes = Character->GetComponentsByClass(USkeletalMeshComponent::StaticClass());
     for (int i = 0; i < Meshes.Num(); i++) {
         UPrimitiveComponent* Mesh = (UPrimitiveComponent*)Meshes[i];
         if (IsValid(Mesh)) {
+            // [关键] 必须是 QueryAndPhysics (3)，否则射线检测可能返回空数据
+            Mesh->SetCollisionEnabled(AS_COLLISION(3)); 
+
+            // [核心修复] 开启复杂碰撞检测
+            // 很多时候没伤害是因为射线没撞到具体的骨骼（Bone），开启此项会强制检测骨骼
+            Mesh->bTraceComplexOnMove = true; 
             
-            // 关键修正：必须设为 QueryOnly(1)，千万不能是 QueryAndPhysics(3)
-            // QueryAndPhysics 会导致模型产生物理体积，从而卡住移动
-            if (Mesh->GetCollisionEnabled() != AS_COLLISION(1)) {
-                Mesh->SetCollisionEnabled(AS_COLLISION(1)); 
+            // 暴力阻挡所有通道，接住所有子弹
+            for (int c = 0; c <= 20; c++) {
+                Mesh->SetCollisionResponseToChannel(AS_CHANNEL(c), AS_RESPONSE(2)); 
             }
 
-            // 1. 先允许所有检测 (确保子弹能打到)
-            Mesh->SetCollisionResponseToAllChannels(AS_RESPONSE(2)); // Block
-
-            // 2. >>> 排除副作用 <<<
-            
-            // 忽略摄像机 (解决视角卡脖子)
-            Mesh->SetCollisionResponseToChannel(AS_CHANNEL(CH_Camera), AS_RESPONSE(0)); 
-            
-            // 忽略角色自身 (解决无法移动)
-            Mesh->SetCollisionResponseToChannel(AS_CHANNEL(CH_Pawn), AS_RESPONSE(0));
-            
-            // 忽略地面 (防止脚卡地里)
-            Mesh->SetCollisionResponseToChannel(AS_CHANNEL(CH_WorldStatic), AS_RESPONSE(0));
-            
-            // 3. 确保子弹通道开启 (Visibility/Weapon)
-            Mesh->SetCollisionResponseToChannel(AS_CHANNEL(CH_Visibility), AS_RESPONSE(2)); 
-        }
-    }
-}
-
-/**
- * [C] 跳伞修复 (Host UI + 自动开伞)
- */
-void Fix_Parachute_Global(ASTExtraPlayerCharacter* Character, bool bIsLocalPlayer, ASTExtraPlayerController* LocalPC) {
-    if (!IsValid(Character)) return;
-
-    float Z = Character->K2_GetActorLocation().Z;
-    
-    // 获取跳伞状态 (偏移 0x1788)
-    unsigned char* pState = (unsigned char*)((uintptr_t)Character + 0x1788);
-
-    // 1. Host 玩家 UI 按钮修复
-    if (bIsLocalPlayer && IsValid(LocalPC)) {
-        if (Z > 20000.0f) {
-            // 强制写内存 bCanOpenParachute (偏移 0x1AF8)
-            *(bool*)((uintptr_t)LocalPC + 0x1AF8) = true; 
+            // 针对自己做视角排除
+            if (bIsSelf) {
+                Mesh->SetCollisionResponseToChannel(AS_CHANNEL(2), AS_RESPONSE(0)); // Ignore Pawn
+                Mesh->SetCollisionResponseToChannel(AS_CHANNEL(4), AS_RESPONSE(0)); // Ignore Camera
+            }
         }
     }
 
-    // 2. 自动开伞 (保底逻辑)
-    // 如果高度 < 300m 且状态是 FreeFall(1) 或 None(0)
-    if (Z < 30000.0f && Z > 1000.0f && *pState <= 1) {
-        *pState = 3; // 3 = Parachuting
-        
-        if (Character->CharacterMovement) {
-            // 3 = Falling. 强制设为 Falling 让引擎处理下落
-            Character->CharacterMovement->SetMovementMode(AS_MOVE(3), 0);
-        }
-    }
+    // 4. 强制同步
+    Character->ForceNetUpdate();
 }
 
 // =================================================================================
 // 3. 主循环
 // =================================================================================
 void Server_Tick_Loop() {
-    
+    if (UE4 == 0) return;
     UWorld* World = *(UWorld**)(UE4 + 0x464c480);
     if (!IsValid(World) || !IsValid(World->PersistentLevel)) return;
 
-    // 1. 获取 LocalPlayer (用于UI修复)
-    ASTExtraPlayerController* LocalPC = nullptr;
     ASTExtraPlayerCharacter* LocalPlayerPawn = nullptr;
-
     if (World->OwningGameInstance && World->OwningGameInstance->LocalPlayers.IsValidIndex(0)) {
         auto LP = World->OwningGameInstance->LocalPlayers[0];
         if (IsValid(LP) && IsValid(LP->PlayerController)) {
-            LocalPC = (ASTExtraPlayerController*)LP->PlayerController;
-            LocalPlayerPawn = (ASTExtraPlayerCharacter*)LocalPC->Pawn;
+            LocalPlayerPawn = (ASTExtraPlayerCharacter*)((ASTExtraPlayerController*)LP->PlayerController)->Pawn;
         }
     }
 
-    // 2. 遍历 Actor
-    // 限制每帧处理逻辑，防止卡顿
     static int tick = 0;
     if (++tick % 2 != 0) return;
 
@@ -173,29 +126,17 @@ void Server_Tick_Loop() {
         AActor* Actor = AllActors[i];
         if (!IsValid(Actor)) continue;
 
-        // --- 人物 (玩家+人机) ---
-        if (Actor->IsA(ASTExtraBaseCharacter::StaticClass())) {
+        if (Actor->IsA(ASTExtraPlayerCharacter::StaticClass())) {
             ASTExtraPlayerCharacter* Char = (ASTExtraPlayerCharacter*)Actor;
-            bool IsMe = (Char == LocalPlayerPawn);
-            
-            // 修复伤害/视角/移动
-            Fix_Damage_And_Movement(Char);
-            
-            // 修复跳伞
-            Fix_Parachute_Global(Char, IsMe, LocalPC);
+            Fix_Weapon_Damage_V26(Char, (Char == LocalPlayerPawn));
         }
-        
-        // --- 门 (自动开) ---
         else if (IsValid(LocalPlayerPawn) && Actor->IsA(APUBGDoor::StaticClass())) {
-             // 2.5米内自动开
-             if (LocalPlayerPawn->GetDistanceTo(Actor) < 250.0f) {
-                 Force_Open_Door(Actor);
-             }
+            if (LocalPlayerPawn->GetDistanceTo(Actor) < 250.0f) Force_Open_Door(Actor);
         }
     }
 }
 
-#endif // SERVER_FIX_MACROS
+#endif
 
 inline void Mmapinit()
 {
@@ -1903,13 +1844,39 @@ void 初始化菜单()
     // open /Game/Maps/Shooting_Range/shooting_test/shooting_range4?game=/Game/BluePrints/Core/Forest/BP_BattleRoyaleGameMode_PUBG_xmas.BP_BattleRoyaleGameMode_PUBG_xmas_Clisten?PlayerName=Server
     if (ImGui::Button("临时修复", ImVec2(-1, 40)))
     {
-        启用攀爬();
-        Mmapinit();
+        获取对象();
+
         防崩();
-        快速服务端全图加载();
-        服务端无敌();
+
         刷物资();
-        战争模式自动化上飞机();
+
+        GameMode->bEnableClimbing = true;
+        // 是否允许攀爬
+        GameMode->bEnableClimbing = true;
+
+        // 是否启用伤害（无敌 / 和平模式）
+        GameMode->bEnableDamage = true;
+
+        // 是否在准备阶段预创建 PlayerController
+        GameMode->bIsPreCreatingPlayerController = true;
+
+        // 最大玩家数量
+        GameMode->MaxPlayerLimit = 100;
+
+        // 最大允许复制的角色数量（网络同步）
+        GameMode->MaxAllowReplicatedCharacterCount = 100;
+
+        // Ready 阶段 AI 不同步时间
+        GameMode->AINoRepTimeInReady = 0;
+
+        // 房间模式（单排/双排/四排/自定义）
+        GameMode->RoomMode = 1;
+
+        // 赛季索引
+        GameMode->SeasonIdx = 18;
+
+        // 是否 FPP（一般 0 = TPP, 1 = FPP）
+        GameMode->IsGameModeFpp = 1;
     }
     if (ImGui::Button("吸人", ImVec2(-1, 40)))
     {
